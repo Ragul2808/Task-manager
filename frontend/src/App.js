@@ -4,11 +4,13 @@ import './App.css';
 import { AiOutlineDelete } from 'react-icons/ai';
 import { BsCheckLg } from 'react-icons/bs';
 
+const API_BASE_URL = 'http://127.0.0.1:3000/api/v1/tasks';
+
 function App() {
-  const [allFrontends, setAllFrontends] = useState([]);
-  const [newfrontendTitle, setNewfrontendTitle] = useState('');
+  const [allTasks, setAllTasks] = useState([]);
+  const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newDescription, setNewDescription] = useState('');
-  const [completedFrontends, setCompletedFrontends] = useState([]);
+  const [completedTasks, setCompletedTasks] = useState([]);
   const [isCompletedScreen, setIsCompletedScreen] = useState(false);
 
   useEffect(() => {
@@ -17,123 +19,114 @@ function App() {
 
   const fetchTasks = async () => {
     try {
-      const response = await axios.get('http://127.0.0.1:3000/api/v1/tasks');
-      setAllFrontends(response.data);
+      const response = await axios.get(API_BASE_URL);
+      setAllTasks(response.data);
     } catch (error) {
       console.error('Error fetching tasks:', error);
     }
   };
 
-  const handleAddNewfrontend = async () => {
+  const saveTasksToLocal = (tasks, key) => {
+    localStorage.setItem(key, JSON.stringify(tasks));
+  };
+
+  const AddNewTask = async () => {
     try {
-      const response = await axios.post('http://127.0.0.1:3000/api/v1/tasks', {
-        title: newfrontendTitle,
+      const response = await axios.post(API_BASE_URL, {
+        title: newTaskTitle,
         description: newDescription,
         completed: false,
       });
-      setAllFrontends([...allFrontends, response.data]);
+      setAllTasks([...allTasks, response.data]);
       setNewDescription('');
-      setNewfrontendTitle('');
+      setNewTaskTitle('');
+      saveTasksToLocal([...allTasks, response.data], 'Tasklist');
     } catch (error) {
       console.error('Error adding new task:', error);
     }
   };
 
-  useEffect (() => {
-    let savedFrontends = JSON.parse (localStorage.getItem ('frontendlist'));
-    let savedCompletedFrontends = JSON.parse (
-      localStorage.getItem ('completedFrontends')
-    );
-    if (savedFrontends) {
-      setAllFrontends (savedFrontends);
+  const Complete = async (taskId, index) => {
+    try {
+      const response = await axios.put(`${API_BASE_URL}/${taskId}`, {
+        completed: true,
+      });
+
+      let filteredTask = {
+        ...response.data,
+        completedOn: new Date().toISOString(),
+      };
+
+      let updatedCompletedList = [...completedTasks, filteredTask];
+      setCompletedTasks(updatedCompletedList);
+
+      TaskDelete(taskId, index);
+    } catch (error) {
+      console.error('Error completing task:', error);
     }
+  };
 
-    if (savedCompletedFrontends) {
-      setCompletedFrontends (savedCompletedFrontends);
+  const TaskDelete = async (taskId, index) => {
+    try {
+      await axios.delete(`${API_BASE_URL}/${taskId}`);
+      let reducedTasks = [...allTasks];
+      reducedTasks.splice(index, 1);
+      setAllTasks(reducedTasks);
+    } catch (error) {
+      console.error('Error deleting task:', error);
     }
-  }, []);
-
-  const handlefrontendDelete = index => {
-    let reducedFrontends = [...allFrontends];
-    reducedFrontends.splice (index,1);
-    // console.log (index);
-
-    // console.log (reducedFrontends);
-    localStorage.setItem ('frontendlist', JSON.stringify (reducedFrontends));
-    setAllFrontends (reducedFrontends);
   };
 
-  const handleCompletedfrontendDelete = index => {
-    let reducedCompletedFrontends = [...completedFrontends];
-    reducedCompletedFrontends.splice (index);
-    // console.log (reducedCompletedFrontends);
-    localStorage.setItem (
-      'completedFrontends',
-      JSON.stringify (reducedCompletedFrontends)
-    );
-    setCompletedFrontends (reducedCompletedFrontends);
+  const CompletedTaskDelete = async (taskId, index) => {
+    try {
+      // Check if the task with the specified ID exists
+      const existingTask = completedTasks.find((item) => item.id === taskId);
+  
+      if (!existingTask) {
+        console.error('Task not found:', taskId);
+        return;
+      }
+  
+      await axios.delete(`${API_BASE_URL}/${taskId}`);
+      let updatedCompletedList = [...completedTasks];
+      updatedCompletedList.splice(index, 1);
+      setCompletedTasks(updatedCompletedList);
+    } catch (error) {
+      console.error('Error deleting completed task:', error);
+    }
   };
-
-  const handleComplete = index => {
-    const date = new Date ();
-    var dd = date.getDate ();
-    var mm = date.getMonth () + 1;
-    var yyyy = date.getFullYear ();
-    var hh = date.getHours ();
-    var minutes = date.getMinutes ();
-    var ss = date.getSeconds ();
-    var finalDate =
-      dd + '-' + mm + '-' + yyyy + ' at ' + hh + ':' + minutes + ':' + ss;
-
-    let filteredfrontend = {
-      ...allFrontends[index],
-      completedOn: finalDate,
-    };
-
-    // console.log (filteredfrontend);
-
-    let updatedCompletedList = [...completedFrontends, filteredfrontend];
-    console.log (updatedCompletedList);
-    setCompletedFrontends (updatedCompletedList);
-    localStorage.setItem (
-      'completedFrontends',
-      JSON.stringify (updatedCompletedList)
-    );
-    // console.log (index);
-
-    handlefrontendDelete (index);
-  };
+  
+  
 
   return (
     <div className="App">
       <h1>Task Manager</h1>
 
-      <div className="frontend-wrapper">
-
-        <div className="frontend-input">
-          <div className="frontend-input-item">
+      <div className="Task-wrapper">
+        <div className="Task-input">
+          <div className="Task-input-item">
             <label>Task:</label>
             <input
               type="text"
-              value={newfrontendTitle}
-              onChange={e => setNewfrontendTitle (e.target.value)}
+              value={newTaskTitle}
+              onChange={(e) => setNewTaskTitle(e.target.value)}
               placeholder="What's the title of your Task?"
             />
           </div>
-          <div className="frontend-input-item">
+          <div className="Task-input-item">
             <label>Description:</label>
             <input
               type="text"
               value={newDescription}
-              onChange={e => setNewDescription (e.target.value)}
+              onChange={(e) => setNewDescription(e.target.value)}
               placeholder="What's the description of your Task?"
             />
           </div>
-          <div className="frontend-input-item">
+          <div className="Task-input-item">
             <button
               className="primary-btn"
               type="button"
-              onClick={handleAddNewfrontend}
+              onClick={AddNewTask}
             >
               Add
             </button>
@@ -141,55 +134,54 @@ function App() {
         </div>
         <div className="btn-area">
           <button
-            className={`secondaryBtn ${isCompletedScreen === false && 'active'}`}
-            onClick={() => setIsCompletedScreen (false)}
+            className={`secondaryBtn ${!isCompletedScreen && 'active'}`}
+            onClick={() => setIsCompletedScreen(false)}
           >
             To Do
           </button>
           <button
-            className={`secondaryBtn ${isCompletedScreen === true && 'active'}`}
-            onClick={() => setIsCompletedScreen (true)}
+            className={`secondaryBtn ${isCompletedScreen && 'active'}`}
+            onClick={() => setIsCompletedScreen(true)}
           >
             Completed
           </button>
         </div>
-        <div className="frontend-list">
-
+        <div className="Task-list">
           {isCompletedScreen === false &&
-            allFrontends.map ((item, index) => (
-              <div className="frontend-list-item" key={index}>
+            allTasks.map((item, index) => (
+              <div className="Task-list-item" key={index}>
                 <div>
                   <h3>{item.title}</h3>
                   <p>{item.description}</p>
-
                 </div>
                 <div>
                   <AiOutlineDelete
                     title="Delete?"
                     className="icon"
-                    onClick={() => handlefrontendDelete (index)}
+                    onClick={() => TaskDelete(item.id, index)}
                   />
                   <BsCheckLg
                     title="Completed?"
                     className=" check-icon"
-                    onClick={() => handleComplete (index)}
+                    onClick={() => Complete(item.id, index)}
                   />
                 </div>
               </div>
             ))}
-
           {isCompletedScreen === true &&
-            completedFrontends.map ((item, index) => (
-              <div className="frontend-list-item" key={index}>
+            completedTasks.map((item, index) => (
+              <div className="Task-list-item" key={item}>
                 <div>
                   <h3>{item.title}</h3>
                   <p>{item.description}</p>
-                  <p> <i>Completed at: {item.completedOn}</i></p>
+                  <p>
+                    <i>Completed at: {item.completedOn}</i>
+                  </p>
                 </div>
                 <div>
                   <AiOutlineDelete
                     className="icon"
-                    onClick={() => handleCompletedfrontendDelete (index)}
+                    onClick={() => CompletedTaskDelete(item.id, index)}
                   />
                 </div>
               </div>
